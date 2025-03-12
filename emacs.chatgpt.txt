@@ -1,0 +1,48 @@
+Emacs 是一个高度可定制的编辑器，理论上可以集成任何命令行工具或 API，包括 DeepSeek。不过具体要如何接入 DeepSeek，取决于 DeepSeek 提供的接口和使用方式。下面是几种常见的集成思路：
+
+命令行工具集成
+如果 DeepSeek 提供了命令行工具，你可以在 Emacs 中调用该命令行程序，并捕获其输出。例如，可以使用 shell-command、async-shell-command 或 call-process：
+
+elisp
+Copy
+(defun my-deepseek-search (query)
+  "使用 DeepSeek 进行搜索，并在一个新 buffer 中显示结果"
+  (interactive "sEnter search query: ")
+  (let ((output-buffer (get-buffer-create "*DeepSeek Search*")))
+    (call-process "deepseek" nil output-buffer nil query)
+    (display-buffer output-buffer)))
+这样你就可以在 Emacs 中输入查询，调用 DeepSeek，然后显示搜索结果。
+
+HTTP API 调用
+如果 DeepSeek 提供 RESTful API 接口，你可以使用 Emacs 的 request.el 包或者内置的 url-retrieve 函数来发送 HTTP 请求，并处理返回的 JSON 数据：
+
+elisp
+Copy
+(require 'request)
+
+(defun my-deepseek-http-search (query)
+  "通过 DeepSeek HTTP API 进行搜索，并在 *DeepSeek Search* buffer 中显示结果"
+  (interactive "sEnter search query: ")
+  (request
+    "https://api.deepseek.example/search"
+    :params `(("q" . ,query))
+    :parser 'json-read
+    :success (cl-function
+              (lambda (&key data &allow-other-keys)
+                (with-current-buffer (get-buffer-create "*DeepSeek Search*")
+                  (erase-buffer)
+                  (insert (format "%S" data))
+                  (display-buffer (current-buffer)))))
+    :error (cl-function
+            (lambda (&rest args &key error-thrown &allow-other-keys)
+              (message "DeepSeek search error: %S" error-thrown)))))
+你需要根据 DeepSeek 的 API 文档调整 URL、参数及处理逻辑。
+
+深度定制
+如果你希望更紧密地集成 DeepSeek（例如与 Emacs 的搜索界面如 helm、ivy 或 consult 等结合），可以编写一个专门的 Emacs Lisp 包，对 DeepSeek 的命令行或 HTTP API 进行封装，并将结果展示在一个交互式界面中。
+
+总结
+理论上，Emacs 能够接入 DeepSeek：Emacs 的灵活性和扩展性允许你通过命令行调用、HTTP API 调用或其他方式集成 DeepSeek。
+具体实现取决于 DeepSeek 的接口：如果 DeepSeek 提供命令行工具或 REST API，可以分别采用上述方法；如果有更专用的 SDK 或库，也可以考虑借助外部工具进行集成。
+使用现有包：如果社区中已有类似集成的包（例如与 helm/ivy 结合的搜索插件），可以参考或直接使用。
+你可以根据 DeepSeek 提供的接口和你在 Emacs 中的使用场景，选择合适的集成方案。
